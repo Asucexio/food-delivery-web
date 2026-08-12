@@ -1,6 +1,42 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:6000";
 
-// ----- Restaurants (public) -----
+// ----- Auth -----
+
+export async function login(email: string, password: string) {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to login");
+  }
+  return res.json();
+}
+
+export async function register(email: string, password: string, name: string, role: string) {
+  const res = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name, role }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to register");
+  }
+  return res.json();
+}
+
+export async function getMe(token: string) {
+  const res = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to fetch user");
+  return res.json();
+}
+
+// ----- Restaurants -----
 
 export async function getRestaurants() {
   const res = await fetch(`${API_BASE_URL}/restaurants`);
@@ -15,35 +51,121 @@ export async function getRestaurantById(id: string) {
   return res.json();
 }
 
+export async function createRestaurant(token: string, data: {
+  name: string;
+  address?: string;
+  phone_number?: string;
+  email?: string;
+}) {
+  const res = await fetch(`${API_BASE_URL}/restaurants`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create restaurant");
+  }
+  return res.json();
+}
+
+export async function updateRestaurant(id: string, token: string, data: {
+  name?: string;
+  address?: string;
+  phone_number?: string;
+  email?: string;
+}) {
+  const res = await fetch(`${API_BASE_URL}/restaurants/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update restaurant");
+  }
+  return res.json();
+}
+
+export async function deleteRestaurant(id: string, token: string) {
+  const res = await fetch(`${API_BASE_URL}/restaurants/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete restaurant");
+  }
+  return res.json();
+}
+
+// ----- Menu Items -----
+
 export async function getMenuItemsByRestaurantId(restaurantId: string) {
   const res = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}/menu-items`);
   if (!res.ok) throw new Error("Failed to fetch menu items");
   return res.json();
 }
 
-// ----- Auth -----
-
-export async function login(email: string, password: string) {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+export async function createMenuItem(restaurantId: string, token: string, data: {
+  name: string;
+  description?: string;
+  price: number;
+}) {
+  const res = await fetch(`${API_BASE_URL}/restaurants/${restaurantId}/menu-items`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to login");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create menu item");
+  }
   return res.json();
 }
 
-export async function register(email: string, password: string, name: string, role: string) {
-  const res = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, name, role }),
+export async function updateMenuItem(id: string, token: string, data: {
+  name?: string;
+  description?: string;
+  price?: number;
+}) {
+  const res = await fetch(`${API_BASE_URL}/menu-items/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to register");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update menu item");
+  }
   return res.json();
 }
 
-// ----- Orders (require auth - every call needs the caller's token) -----
+export async function deleteMenuItem(id: string, token: string) {
+  const res = await fetch(`${API_BASE_URL}/menu-items/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to delete menu item");
+  }
+  return res.json();
+}
+
+// ----- Orders -----
 
 export async function getMyOrders(token: string) {
   const res = await fetch(`${API_BASE_URL}/orders`, {
@@ -61,7 +183,6 @@ export async function getOrderById(id: string, token: string) {
   return res.json();
 }
 
-// matches backend: { restaurantId, items: [{ menuItemId, quantity }], deliveryAddress }
 export async function createOrder(
   token: string,
   restaurantId: string,
@@ -76,11 +197,13 @@ export async function createOrder(
     },
     body: JSON.stringify({ restaurantId, items, deliveryAddress }),
   });
-  if (!res.ok) throw new Error("Failed to create order");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to create order");
+  }
   return res.json();
 }
 
-// matches backend: PATCH /orders/:id, body { status } - used by restaurant_owner/driver
 export async function updateOrderStatus(id: string, status: string, token: string) {
   const res = await fetch(`${API_BASE_URL}/orders/${id}`, {
     method: "PATCH",
@@ -90,6 +213,44 @@ export async function updateOrderStatus(id: string, status: string, token: strin
     },
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error("Failed to update order status");
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to update order status");
+  }
+  return res.json();
+}
+
+// ----- Driver -----
+
+export async function getAvailableOrders(token: string) {
+  const res = await fetch(`${API_BASE_URL}/drivers/orders/available`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to fetch available orders");
+  return res.json();
+}
+
+export async function acceptOrder(id: string, token: string) {
+  const res = await fetch(`${API_BASE_URL}/drivers/orders/${id}/accept`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to accept order");
+  }
+  return res.json();
+}
+
+export async function updateDriverStatus(token: string, isOnline: boolean, vehicleType?: string) {
+  const res = await fetch(`${API_BASE_URL}/drivers/status`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ isOnline, vehicleType }),
+  });
+  if (!res.ok) throw new Error("Failed to update status");
   return res.json();
 }
