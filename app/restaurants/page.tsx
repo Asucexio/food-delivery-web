@@ -1,202 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { getRestaurants } from "@/src/lib/api";
-import { MapPin, Star, Clock, Search, ArrowRight, UtensilsCrossed } from "lucide-react";
+import { useState, useMemo } from "react";
+import { restaurants, categories } from "@/lib/data";
+import RestaurantCard from "@/components/RestaurantCard";
+import { Search, SlidersHorizontal, X, Star, Clock, ArrowUpDown } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
-// Matches the palette used across the homepage / navbar:
-// ink #2A1C14, berbere #A5311F, turmeric #C68A2E, sage #4B6B4F, parchment #FAF5EC
-
-const RESTAURANT_IMAGES = [
-  "1517248135467-4c7edcad34c4",
-  "1552566626-52f8b828add9",
-  "1559339352-11d035aa65de",
-  "1414235077428-338989a2e8c0",
-  "1555396273-367ea4eb4db5",
-  "1514933651103-005eec06c04b",
-];
-
-function displayRating(restaurant: any, index: number) {
-  if (typeof restaurant?.rating === "number") return restaurant.rating.toFixed(1);
-  const seeded = [4.9, 4.6, 4.8, 4.5, 4.7, 4.9];
-  return seeded[index % seeded.length].toFixed(1);
-}
+type SortOption = "rating" | "delivery" | "price";
 
 export default function RestaurantsPage() {
-  const [restaurants, setRestaurants] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
 
-  useEffect(() => {
-    getRestaurants()
-      .then((data) => {
-        setRestaurants(data);
-        setFiltered(data);
-      })
-      .catch(() => {
-        setRestaurants([]);
-        setFiltered([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [sortBy, setSortBy] = useState<SortOption>("rating");
+  const [showFilters, setShowFilters] = useState(false);
+  const [minRating, setMinRating] = useState(0);
 
-  useEffect(() => {
-    let result = restaurants;
+  const filtered = useMemo(() => {
+    let result = [...restaurants];
 
-    if (category !== "all") {
-      result = result.filter((r) => {
-        const tag = (r.category || r.cuisine || "").toLowerCase();
-        return tag.includes(category);
-      });
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    // Search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
       result = result.filter(
         (r) =>
           r.name.toLowerCase().includes(q) ||
-          (r.address && r.address.toLowerCase().includes(q))
+          r.cuisine.toLowerCase().includes(q) ||
+          r.tags.some((t) => t.toLowerCase().includes(q))
       );
     }
 
-    setFiltered(result);
-  }, [search, category, restaurants]);
+    // Category
+    if (activeCategory !== "all") {
+      result = result.filter((r) =>
+        r.tags.some((t) => t.toLowerCase() === activeCategory)
+      );
+    }
 
-  const categories = [
-    { key: "all", label: "All" },
-    { key: "ethiopian", label: "Ethiopian" },
-    { key: "fastfood", label: "Fast food" },
-    { key: "pizza", label: "Pizza" },
-    { key: "coffee", label: "Coffee" },
-  ];
+    // Rating filter
+    if (minRating > 0) {
+      result = result.filter((r) => r.rating >= minRating);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === "rating") return b.rating - a.rating;
+      if (sortBy === "delivery") {
+        const aTime = parseInt(a.deliveryTime);
+        const bTime = parseInt(b.deliveryTime);
+        return aTime - bTime;
+      }
+      if (sortBy === "price") return a.deliveryFee - b.deliveryFee;
+      return 0;
+    });
+
+    return result;
+  }, [searchQuery, activeCategory, sortBy, minRating]);
 
   return (
-    <div className="min-h-screen bg-[#FAF5EC]">
-      {/* HEADER */}
-      <div className="bg-[#2A1C14] pt-16 pb-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <span className="text-xs font-semibold tracking-widest uppercase text-[#C68A2E]">
-            Addis Ababa
-          </span>
-          <h1 className="mt-3 font-serif text-4xl md:text-5xl text-white">
-            Discover restaurants
-          </h1>
-          <p className="mt-3 text-white/60 text-lg max-w-xl">
-            Search over 500 restaurants across the city, from traditional
-            kitchens to your usual favorites.
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Restaurants</h1>
+          <p className="text-gray-500">Discover the best food near you</p>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 -mt-10">
-        {/* SEARCH */}
-        <div className="bg-white rounded-xl shadow-sm border border-[#2A1C14]/5 p-3 mb-6">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#2A1C14]/35" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search & Filters */}
+        <div className="flex flex-col lg:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search restaurants or cuisines"
-              className="w-full pl-12 pr-4 py-3.5 text-[#2A1C14] placeholder:text-[#2A1C14]/35 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 transition-shadow"
+              placeholder="Search restaurants, cuisines..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 rounded-xl bg-white border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+              >
+                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
           </div>
+
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-colors ${
+              showFilters
+                ? "bg-red-500 text-white"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-red-300"
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
+          </button>
         </div>
 
-        {/* CATEGORY FILTERS */}
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-8 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Category Pills */}
+        <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
           {categories.map((cat) => (
             <button
-              key={cat.key}
-              onClick={() => setCategory(cat.key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${
-                category === cat.key
-                  ? "bg-[#A5311F] text-white border-[#A5311F]"
-                  : "bg-white text-[#2A1C14]/60 border-[#2A1C14]/10 hover:border-[#A5311F]/40 hover:text-[#A5311F]"
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap text-sm font-medium transition-all ${
+                activeCategory === cat.id
+                  ? "bg-red-500 text-white shadow-md shadow-red-500/20"
+                  : "bg-white text-gray-600 border border-gray-200 hover:border-red-300"
               }`}
             >
-              {cat.label}
+              <span>{cat.icon}</span>
+              {cat.name}
             </button>
           ))}
         </div>
 
-        <p className="text-sm text-[#2A1C14]/50 mb-5">
-          {loading
-            ? "Loading restaurants…"
-            : `${filtered.length} restaurant${filtered.length !== 1 ? "s" : ""} found`}
-        </p>
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-8">
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-3 block">Sort By</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "rating" as SortOption, label: "Top Rated", icon: Star },
+                    { value: "delivery" as SortOption, label: "Fastest", icon: Clock },
+                    { value: "price" as SortOption, label: "Lowest Fee", icon: ArrowUpDown },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setSortBy(opt.value)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        sortBy === opt.value
+                          ? "bg-red-50 text-red-600 border border-red-200"
+                          : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      <opt.icon className="w-3.5 h-3.5" />
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        {/* GRID */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-white rounded-xl h-80 animate-pulse border border-[#2A1C14]/5" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-            {filtered.map((restaurant, i) => (
-              <Link
-                key={restaurant.id}
-                href={`/restaurants/${restaurant.id}`}
-                className="group bg-white rounded-xl border border-[#2A1C14]/10 overflow-hidden hover:shadow-lg hover:border-[#2A1C14]/20 transition-all"
-              >
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={`https://images.unsplash.com/photo-${RESTAURANT_IMAGES[i % RESTAURANT_IMAGES.length]}?w=600&h=400&fit=crop`}
-                    alt={restaurant.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute top-3 right-3 bg-white px-2.5 py-1 rounded-full text-xs font-semibold text-[#2A1C14] flex items-center gap-1 shadow-sm">
-                    <Star className="w-3.5 h-3.5 fill-[#C68A2E] text-[#C68A2E]" />
-                    {displayRating(restaurant, i)}
-                  </div>
-                  <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                    <span className="px-2.5 py-1 bg-[#4B6B4F] text-white text-xs font-medium rounded-full">
-                      Open
-                    </span>
-                    <span className="px-2.5 py-1 bg-white/95 text-[#2A1C14]/70 text-xs font-medium rounded-full flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {20 + (i % 4) * 5}–{30 + (i % 4) * 5} min
-                    </span>
-                  </div>
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-3 block">Minimum Rating</label>
+                <div className="flex gap-2">
+                  {[0, 4.0, 4.5, 4.8].map((rating) => (
+                    <button
+                      key={rating}
+                      onClick={() => setMinRating(rating)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        minRating === rating
+                          ? "bg-red-50 text-red-600 border border-red-200"
+                          : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {rating === 0 ? "Any" : `${rating}+`}
+                    </button>
+                  ))}
                 </div>
-                <div className="p-5">
-                  <h3 className="font-serif text-lg text-[#2A1C14] group-hover:text-[#A5311F] transition-colors">
-                    {restaurant.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-[#2A1C14]/50 text-sm mt-1.5">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{restaurant.address || "Addis Ababa, Ethiopia"}</span>
-                  </div>
-                  {restaurant.phone_number && (
-                    <p className="text-xs text-[#2A1C14]/35 mt-1">{restaurant.phone_number}</p>
-                  )}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#2A1C14]/8">
-                    <span className="text-xs text-[#2A1C14]/40">Free delivery</span>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-[#A5311F]">
-                      View menu <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* EMPTY STATE */}
-        {!loading && filtered.length === 0 && (
+        {/* Results Count */}
+        <p className="text-sm text-gray-500 mb-6">
+          {filtered.length} restaurant{filtered.length !== 1 ? "s" : ""} found
+        </p>
+
+        {/* Restaurant Grid */}
+        {filtered.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((restaurant) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            ))}
+          </div>
+        ) : (
           <div className="text-center py-20">
-            <div className="w-16 h-16 bg-white border border-[#2A1C14]/10 rounded-full flex items-center justify-center mx-auto mb-5">
-              <UtensilsCrossed className="w-6 h-6 text-[#2A1C14]/30" />
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="font-serif text-xl text-[#2A1C14] mb-2">No restaurants found</h3>
-            <p className="text-[#2A1C14]/50 text-sm">
-              Try a different search term or category.
-            </p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No restaurants found</h3>
+            <p className="text-gray-500">Try adjusting your search or filters</p>
           </div>
         )}
       </div>

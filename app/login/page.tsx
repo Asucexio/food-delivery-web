@@ -1,142 +1,105 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/src/lib/api";
-import { useAuth } from "@/src/context/AuthContext";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { getRedirectPath } from "@/src/lib/utils";
-
-// Matches the palette used across the site:
-// ink #2A1C14, berbere #A5311F, turmeric #C68A2E, sage #4B6B4F, parchment #FAF5EC
+import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
+  const { login } = useAuth();
   const router = useRouter();
-  const { login: setAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
-
-    try {
-      const data = await login(email, password);
-      const token = data.session?.access_token;
-      if (!token) throw new Error("No token received");
-
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const user = {
-        id: payload.sub,
-        email: payload.email,
-        role: payload.role,
-      };
-
-      setAuth(token, user);
-
-      // Role-based redirect
-      const redirectTo = getRedirectPath(user.role);
-      router.push(redirectTo);
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password");
-    } finally {
-      setIsLoading(false);
+    setLoading(true);
+    const success = await login(email, password);
+    setLoading(false);
+    if (success) {
+      router.push("/");
+    } else {
+      setError("Invalid email or password. Try any email with password >= 6 chars.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF5EC] px-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 bg-[#A5311F] rounded-lg flex items-center justify-center text-white">
-            <span className="font-serif text-base leading-none">F</span>
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <span className="text-white text-xl font-bold">F</span>
           </div>
-          <span className="font-serif text-lg text-[#2A1C14]">FoodDelivery</span>
-        </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+          <p className="text-gray-500 mt-1">Sign in to your Foodie account</p>
+        </div>
 
-        <div className="bg-white rounded-2xl border border-[#2A1C14]/8 shadow-sm p-8">
-          <div className="text-center mb-8">
-            <h1 className="font-serif text-3xl text-[#2A1C14]">Welcome back</h1>
-            <p className="text-[#2A1C14]/50 mt-2 text-sm">Sign in to your account</p>
-          </div>
-
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
           {error && (
-            <div className="mb-5 p-3 bg-[#A5311F]/8 border border-[#A5311F]/20 rounded-lg text-[#A5311F] text-sm">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-1.5">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#2A1C14]/35" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-[#2A1C14] placeholder:text-[#2A1C14]/30 border border-[#2A1C14]/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 focus:border-[#A5311F]/40 transition"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-1.5">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#2A1C14]/35" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-12 py-3 text-[#2A1C14] placeholder:text-[#2A1C14]/30 border border-[#2A1C14]/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 focus:border-[#A5311F]/40 transition"
+                  className="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#2A1C14]/35 hover:text-[#2A1C14]/60 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            <div className="flex justify-end -mt-1">
-              <Link href="/forgot-password" className="text-xs font-medium text-[#2A1C14]/50 hover:text-[#A5311F] transition-colors">
-                Forgot password?
-              </Link>
-            </div>
-
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-[#A5311F] hover:bg-[#8A2818] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full py-3.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
             >
-              {isLoading ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : "Sign in"}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : "Sign In"}
             </button>
           </form>
-        </div>
 
-        <p className="text-center mt-6 text-sm text-[#2A1C14]/50">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-[#A5311F] hover:text-[#8A2818] font-medium">
-            Create one
-          </Link>
-        </p>
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-red-500 font-medium hover:underline">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

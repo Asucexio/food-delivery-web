@@ -1,202 +1,126 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { register } from "@/src/lib/api";
-import { useAuth } from "@/src/context/AuthContext";
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ChefHat, Truck, UtensilsCrossed } from "lucide-react";
-import { getRedirectPath } from "@/src/lib/utils";
-
-// Matches the palette used across the site:
-// ink #2A1C14, berbere #A5311F, turmeric #C68A2E, sage #4B6B4F, parchment #FAF5EC
-
-type Role = "customer" | "restaurant_owner" | "driver";
+import { User, Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
+  const { register } = useAuth();
   const router = useRouter();
-  const { login: setAuth } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("customer");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const roles: { value: Role; label: string; icon: React.ReactNode }[] = [
-    { value: "customer", label: "Customer", icon: <UtensilsCrossed className="w-5 h-5" /> },
-    { value: "restaurant_owner", label: "Restaurant owner", icon: <ChefHat className="w-5 h-5" /> },
-    { value: "driver", label: "Driver", icon: <Truck className="w-5 h-5" /> },
-  ];
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setSuccessMsg("");
-    setIsLoading(true);
-
-    try {
-      const data = await register(email, password, name, role);
-
-      // Case 1: Session returned immediately (email confirmation OFF)
-      if (data.session?.access_token) {
-        const user = {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.name,
-          role: data.user.role,
-        };
-        setAuth(data.session.access_token, user);
-
-        // Role-based redirect
-        const redirectTo = getRedirectPath(user.role);
-        router.push(redirectTo);
-        return;
-      }
-
-      // Case 2: No session — email confirmation required
-      setSuccessMsg("Registration successful! Please check your email to confirm, then log in.");
-      setTimeout(() => router.push("/login"), 3000);
-    } catch (err: any) {
-      setError(err.message || "Registration failed");
-    } finally {
-      setIsLoading(false);
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setLoading(true);
+    const success = await register(name, email, password);
+    setLoading(false);
+    if (success) {
+      router.push("/");
+    } else {
+      setError("Registration failed. Please try again.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF5EC] px-4 py-12">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-8 h-8 bg-[#A5311F] rounded-lg flex items-center justify-center text-white">
-            <span className="font-serif text-base leading-none">F</span>
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <span className="text-white text-xl font-bold">F</span>
           </div>
-          <span className="font-serif text-lg text-[#2A1C14]">FoodDelivery</span>
-        </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
+          <p className="text-gray-500 mt-1">Join Foodie and start ordering</p>
+        </div>
 
-        <div className="bg-white rounded-2xl border border-[#2A1C14]/8 shadow-sm p-8">
-          <div className="text-center mb-8">
-            <h1 className="font-serif text-3xl text-[#2A1C14]">Create your account</h1>
-            <p className="text-[#2A1C14]/50 mt-2 text-sm">
-              Join thousands ordering from local restaurants
-            </p>
-          </div>
-
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 shadow-sm">
           {error && (
-            <div className="mb-5 p-3 bg-[#A5311F]/8 border border-[#A5311F]/20 rounded-lg text-[#A5311F] text-sm">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
               {error}
             </div>
           )}
 
-          {successMsg && (
-            <div className="mb-5 p-3 bg-[#4B6B4F]/8 border border-[#4B6B4F]/20 rounded-lg text-[#4B6B4F] text-sm">
-              {successMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-1.5">
-                Full name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#2A1C14]/35" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-[#2A1C14] placeholder:text-[#2A1C14]/30 border border-[#2A1C14]/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 focus:border-[#A5311F]/40 transition"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                   placeholder="John Doe"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-1.5">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#2A1C14]/35" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 text-[#2A1C14] placeholder:text-[#2A1C14]/30 border border-[#2A1C14]/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 focus:border-[#A5311F]/40 transition"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-1.5">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-[#2A1C14]/35" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-12 py-3 text-[#2A1C14] placeholder:text-[#2A1C14]/30 border border-[#2A1C14]/12 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A5311F]/30 focus:border-[#A5311F]/40 transition"
-                  placeholder="Min 6 characters"
+                  className="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#2A1C14]/35 hover:text-[#2A1C14]/60 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#2A1C14]/70 mb-2">
-                I am a...
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {roles.map((r) => (
-                  <button
-                    key={r.value}
-                    type="button"
-                    onClick={() => setRole(r.value)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-colors ${
-                      role === r.value
-                        ? "border-[#A5311F] bg-[#A5311F]/8 text-[#A5311F]"
-                        : "border-[#2A1C14]/12 hover:border-[#2A1C14]/25 text-[#2A1C14]/50"
-                    }`}
-                  >
-                    {r.icon}
-                    <span className="text-xs font-medium text-center leading-tight">{r.label}</span>
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs text-gray-400 mt-1">Must be at least 6 characters</p>
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-[#A5311F] hover:bg-[#8A2818] text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full py-3.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
             >
-              {isLoading ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : "Create account"}
+              {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : "Create Account"}
             </button>
           </form>
-        </div>
 
-        <p className="text-center mt-6 text-sm text-[#2A1C14]/50">
-          Already have an account?{" "}
-          <Link href="/login" className="text-[#A5311F] hover:text-[#8A2818] font-medium">
-            Sign in
-          </Link>
-        </p>
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Already have an account?{" "}
+            <Link href="/login" className="text-red-500 font-medium hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

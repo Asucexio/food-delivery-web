@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/src/context/AuthContext";
-import { CartProvider } from "@/src/context/CartContext";
-// import NavbarWrapper from "@/src/components/NavbarWrapper";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { CartProvider } from "@/lib/store";
+import { AuthProvider } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Food Delivery",
-  description: "Order food from your favorite restaurants",
+  title: "Foodie - Food Delivery",
+  description: "Order delicious food from the best local restaurants. Fast delivery to your door.",
 };
 
 export default function RootLayout({
@@ -27,11 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen flex flex-col`}
+      >
         <AuthProvider>
           <CartProvider>
-            {/* <NavbarWrapper /> */}
-            {children}
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
           </CartProvider>
         </AuthProvider>
       </body>
